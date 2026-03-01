@@ -1,0 +1,9 @@
+pypdf
+pymongo
+streamlit
+faiss-cpu
+langchain
+langchain-ollama
+langchain_community
+langchain-text-splitters
+-e .

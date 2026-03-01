@@ -1,0 +1,9 @@
+artifacts/
+notebooks/
+data/
+venv/
+__pycache__/
+*.pyc
+.env
+.git
+.gitignore
