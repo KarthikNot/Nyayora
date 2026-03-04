@@ -22,6 +22,8 @@ class VectorStore:
         try:
             documents = []
 
+            self.collection.delete_many({})
+
             for chunk, embedding in zip(chunks, embeddings):
                 documents.append(
                     {
@@ -35,3 +37,32 @@ class VectorStore:
         except Exception as e:
             logger.error(f"Error while storing embeddings: {str(e)}", exc_info = True)
         return False
+
+
+    def retrieve_documents(self, user_query_embedding, k = 20):
+        try:
+            
+
+            pipeline = [
+                {
+                    "$vectorSearch": {
+                        "index": "vector_index",
+                        "path": "embedding",
+                        "queryVector": user_query_embedding,
+                        "numCandidates": k * 10,
+                        "limit": k
+                    }
+                },
+                {
+                    "$project": {
+                        "text": 1,
+                        "score": {"$meta": "vectorSearchScore"}
+                    }
+                }
+            ]
+
+            result = list(self.collection.aggregate(pipeline=pipeline))
+            return result
+        except Exception as e:
+            logger.error(f"Error while retrieving documents: {str(e)}", exc_info = True)
+        return []

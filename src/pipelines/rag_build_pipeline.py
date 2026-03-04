@@ -32,7 +32,6 @@ def run_build_pipeline():
 
         logger.info("Started to store embeddings in db...")
         MONGO_URI = os.getenv("MONGO_URI")
-        print(MONGO_URI)
         if not MONGO_URI:
             logger.warning("MONGO_URI does not exist")
             return None
