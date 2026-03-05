@@ -9,7 +9,8 @@ def generate_embeddings(chunks):
     try:
 
         embedding_model = OllamaEmbeddings(
-            model=VECTOR_EMBEDDINGS_MODEL
+            model=VECTOR_EMBEDDINGS_MODEL,
+            base_url=OLLAMA_BASE_URL
         )
 
         texts = [chunk.page_content for chunk in chunks]
@@ -25,7 +26,8 @@ def user_query_embedding(query):
     try:
 
         embedding_model = OllamaEmbeddings(
-            model=VECTOR_EMBEDDINGS_MODEL
+            model=VECTOR_EMBEDDINGS_MODEL,
+            base_url=OLLAMA_BASE_URL
         )
 
         return embedding_model.embed_query(query)

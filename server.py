@@ -1,12 +1,10 @@
 import os
 import streamlit as st
-from dotenv import load_dotenv
-from langchain_ollama import ChatOllama
-from src.components.vector_store import VectorStore
 from src.core.config import *
+from dotenv import load_dotenv
 from src.core.logger import logger
-from langchain.messages import SystemMessage, HumanMessage
-from src.components.embeddings import user_query_embedding
+from src.components.vector_store import VectorStore
+from src.pipelines.query_pipeline import QueryProcessor
 
 
 @st.cache_resource
@@ -27,20 +25,15 @@ def initialize_vector_store(mongo_uri):
         st.stop()
 
 
-@st.cache_resource
-def initialize_chat_model():
-    """Initialize and cache the chat model to avoid repeated instantiations."""
+def initialize_query_processor(vector_store):
+    """Initialize and cache the query processor to avoid repeated instantiations."""
     try:
-        model = ChatOllama(
-            model=LLM_MODEL,
-            base_url=OLLAMA_BASE_URL
-            temperature=0.0,
-        )
-        logger.info("Chat model initialized successfully")
-        return model
+        processor = QueryProcessor(vector_store)
+        logger.info("Query processor initialized successfully")
+        return processor
     except Exception as e:
-        logger.error(f"Failed to initialize chat model: {str(e)}", exc_info=True)
-        st.error(f"❌ Failed to initialize chat model: {str(e)}")
+        logger.error(f"Failed to initialize query processor: {str(e)}", exc_info=True)
+        st.error(f"❌ Failed to initialize query processor: {str(e)}")
         st.stop()
 
 
@@ -55,70 +48,21 @@ def validate_query(query):
     return True, ""
 
 
-def process_query(chat_model, vc, user_query):
-    """Process the user query through the RAG pipeline."""
+def process_query(query_processor, user_query):
+    """Process the user query through the QueryProcessor pipeline."""
     try:
-        # Validate input
         is_valid, error_msg = validate_query(user_query)
         if not is_valid:
             return None, error_msg
         
-        # Generate embedding for the query
         logger.info(f"Processing query: {user_query[:50]}...")
-        with st.spinner("🔍 Embedding query..."):
-            embedded_query = user_query_embedding(user_query)
+        with st.spinner("🔍 Analyzing query..."):
+            response = query_processor.run(user_query)
         
-        if not embedded_query:
-            error_msg = "Failed to generate query embedding. Please try again."
-            logger.error(error_msg)
-            return None, error_msg
-        
-        # Retrieve relevant documents
-        with st.spinner("📚 Retrieving relevant documents..."):
-            retrieved_docs = vc.retrieve_documents(embedded_query, k=50)
-        
-        if not retrieved_docs:
-            logger.warning("No documents retrieved for query")
-            return None, "No relevant documents found in the knowledge base."
-        
-        # Prepare context from retrieved documents
-        context = "\n\n".join([doc['text'] for doc in retrieved_docs])
-        
-        if not context.strip():
-            logger.warning("Empty context generated from retrieved documents")
-            return None, "Retrieved documents are empty. Please try a different query."
-        
-        # Generate response using the chat model
-        if SYSTEM_PROMPT:
-            messages = [
-                SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(content=f"""
-Retrieved Context:
-{context}
-
-User Question:
-{user_query}
-""")
-            ]
-
-            logger.info("Streaming response from chat model...")
-            response_generator = chat_model.stream(messages)
-            
-            if response_generator:
-                logger.info("Response stream initiated successfully")
-                return response_generator, None
-            else:
-                error_msg = "Failed to initiate response stream."
-                logger.error(error_msg)
-                return None, error_msg
-        else:
-            error_msg = "System prompt is not configured."
-            logger.error(error_msg)
-            return None, error_msg
+        return response, None
     
     except Exception as e:
-        error_msg = f"Error processing query: {str(e)}"
-        logger.error(error_msg, exc_info=True)
+        logger.error(f"Error processing query: {str(e)}", exc_info=True)
         return None, error_msg
 
 
@@ -140,7 +84,7 @@ def main():
     # Initialize resources
     mongo_uri = os.getenv("MONGO_URI")
     vc = initialize_vector_store(mongo_uri)
-    chat_model = initialize_chat_model()
+    query_processor = initialize_query_processor(vc)
     
     # Create columns for better layout
     col1, col2 = st.columns([3, 1])
@@ -155,28 +99,16 @@ def main():
     with col2:
         submit_button = st.button("🔍 Search", use_container_width=True)
     
-    # Process query when submit button is clicked or enter is pressed
-    if submit_button or user_query:
+    if submit_button:
         if user_query:
-            response_stream, error = process_query(chat_model, vc, user_query)
+            response_stream, error = process_query(query_processor, user_query)
             
             if error:
                 st.warning(f"⚠️ {error}")
                 logger.warning(f"Query processing issue: {error}")
             else:
-                st.subheader("Answer")
-                
-                # Stream the response in real-time
-                with st.spinner("💭 Generating response..."):
-                    response_text = ""
-                    response_container = st.empty()
-                    
-                    for chunk in response_stream:
-                        if chunk.content:
-                            response_text += chunk.content
-                            response_container.markdown(response_text)
-                
-                logger.info("Response streamed successfully")
+                with st.spinner("⚖️ Generating legal analysis..."):
+                    full_response = st.write_stream(response_stream)
                 
                 # Add disclaimer
                 with st.expander("📋 Disclaimer"):
