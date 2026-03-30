@@ -1,3 +1,4 @@
+from datetime import datetime
 from src.core.config import *
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -22,11 +23,14 @@ class VectorStore:
         try:
             documents = []
 
+            now = datetime.now()
+
             self.collection.delete_many({})
 
             for chunk, embedding in zip(chunks, embeddings):
                 documents.append(
                     {
+                        "updatedAt" : now,
                         "text": chunk.page_content,
                         "embedding": embedding
                     }

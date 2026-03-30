@@ -8,6 +8,10 @@ class QueryProcessor:
 
     def __init__(self, vector_store):
         self.vector_store = vector_store
+        self.model = ChatOllama(
+            model=MINI_AGENT_MODELS,
+            base_url=OLLAMA_BASE_URL
+        )
 
     def query_classifier_agent(self, user_query):
         try:
@@ -17,14 +21,11 @@ class QueryProcessor:
                 HumanMessage(content=user_query)
             ]
 
-            model = ChatOllama(
-                model=LLM_MODEL,
-                base_url=OLLAMA_BASE_URL
-            )
-
-            response = model.invoke(prompt)
+            response = self.model.invoke(prompt)
 
             answer = str(response.content).lower().strip()
+
+            logger.info(f"Query Classifier Agent Response: {answer}")
 
             return answer.startswith("yes")
 
@@ -40,21 +41,20 @@ class QueryProcessor:
                 HumanMessage(content=query)
             ]
 
-            model = ChatOllama(
-                model=LLM_MODEL,
-                base_url=OLLAMA_BASE_URL
-            )
+            response = self.model.invoke(prompt)
 
-            response = model.invoke(prompt)
+            response = response.content.strip().lower()
 
-            return response.content.strip().lower()
+            logger.info(f"Intent Classifier Agent Response: {response}")
+
+            return response
 
         except Exception as e:
             logger.error(f"Planner Agent error: {str(e)}", exc_info=True)
         return "legal_question"
 
 
-    def retrieval_agent(self, intent : str, query : str, top_k : int = 10):
+    def retrieval_agent(self, intent : str, query : str, top_k : int = 50):
         try:
 
             search_query = f"IPC law sections about {intent}. Case: {query}"
@@ -100,12 +100,7 @@ class QueryProcessor:
                 """)
             ]
 
-            model = ChatOllama(
-                model=LLM_MODEL,
-                base_url=OLLAMA_BASE_URL
-            )
-
-            for chunk in model.stream(prompt):
+            for chunk in self.model.stream(prompt):
                 yield chunk.content
 
         except Exception as e:
