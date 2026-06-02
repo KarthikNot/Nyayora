@@ -36,7 +36,7 @@ async def run_build_pipeline() -> None:
                 continue
             
             logger.info(f"Storing {len(chunks)} chunks into ChromaDB collection: '{statute_name.lower()}'")
-            result = await vector_store.store_embeddings(chunks=chunks, collection_name=statute_name.lower())
+            result = await vector_store.store_embeddings(chunks=chunks, collection_name=statute_name.lower(), batch_size=EMBEDDING_BATCH_SIZE)
             
             if result:
                 all_chunks.extend(chunks)
