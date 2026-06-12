@@ -6,6 +6,21 @@ from langchain_community.document_loaders import PyPDFLoader
 
 
 def load_dataset() -> dict:
+    """
+    Downloads and loads legal PDF datasets into memory.
+
+    This function:
+        1. Creates the data directory if it does not exist.
+        2. Downloads IPC, BNS, BNSS, and BSA PDFs if missing.
+        3. Loads each PDF using PyPDFLoader.
+        4. Stores documents grouped by statute name.
+
+    Returns:
+        dict:
+            Dictionary containing loaded documents where:
+            - key = statute name (ipc, bns, bnss, bsa)
+            - value = list of LangChain Document objects
+    """
     try:
         data_dir = os.path.join(BASE_PATH, "data")
         if not os.path.exists(data_dir):
@@ -44,5 +59,5 @@ def load_dataset() -> dict:
         
         return all_datasets_docs
     except Exception as e:
-        logger.error(f"Failed to load dataset: {str(e)}", exc_info=True)
+        logger.error(f"Failed to load dataset: {str(e)}")
         raise e
